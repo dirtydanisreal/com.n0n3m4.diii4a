@@ -7920,28 +7920,44 @@ void idPlayer::CalculateFirstPersonView(void)
 #ifdef _MOD_FULL_BODY_AWARENESS
 	if(!harm_pm_fullBodyAwareness.GetBool() || pm_thirdPerson.GetBool()) {
 #endif
-	if ((pm_modelView.GetInteger() == 1) || ((pm_modelView.GetInteger() == 2) && (health <= 0))) {
-		//	Displays the view from the point of view of the "camera" joint in the player model
-
-		idMat3 axis;
-		idVec3 origin;
-		idAngles ang;
-
-		ang = viewBobAngles + playerView.AngleOffset();
-		ang.yaw += viewAxis[ 0 ].ToYaw();
-
-		jointHandle_t joint = animator.GetJointHandle("camera");
-		animator.GetJointTransform(joint, gameLocal.time, origin, axis);
-		firstPersonViewOrigin = (origin + modelOffset) * (viewAxis * physicsObj.GetGravityAxis()) + physicsObj.GetOrigin() + viewBob;
-		firstPersonViewAxis = axis * ang.ToMat3() * physicsObj.GetGravityAxis();
-	} else {
+	if( pm_modelView.GetInteger() == 0 || pm_modelView.GetInteger() == 2 && !IsDead() ) {
 		// offset for local bobbing and kicks
 		GetViewPos(firstPersonViewOrigin, firstPersonViewAxis);
 #if 0
 		// shakefrom sound stuff only happens in first person
 		firstPersonViewAxis = firstPersonViewAxis * playerView.ShakeAxis();
 #endif
+		return;
 	}
+
+	//	Displays the view from the point of view of the "camera" joint in the player model
+
+	idAFAttachment *headAttch = head.GetEntity();
+	idAnimator *headAnim = headAttch->GetAnimator();
+	if( headAnim == NULL ) {
+		return;
+	}
+
+	// Static so we're not looking it up every frame
+	static jointHandle_t headJoint = (jointHandle_t)( -2 );
+	if( headJoint == -2 ) {
+		headJoint = headAnim->GetJointHandle( "camera" );
+	}
+		idMat3 axis;
+	idVec3 origin;
+
+	headAttch->GetJointWorldTransform( headJoint, gameLocal.time, origin, axis );
+
+	/* not using this anymore, the head cam produces really fucked
+	 * angles for most of the weapons which are... vomit enducing :(
+	idAngles ang;
+	ang = axis.ToAngles();
+	ang.pitch = viewAngles.pitch;
+	*/
+
+	firstPersonViewOrigin = origin;
+	firstPersonViewAxis = viewAngles.ToMat3();
+
 #ifdef _MOD_FULL_BODY_AWARENESS
 	} else {
 		idVec3 firstPersonViewOrigin_orig;
@@ -8102,7 +8118,9 @@ void idPlayer::CalculateRenderView(void)
 
 			// set the viewID to the clientNum + 1, so we can suppress the right player bodies and
 			// allow the right player view weapons
-			renderView->viewID = entityNumber + 1;
+			if( pm_modelView.GetInteger() == 0 ) {
+				renderView->viewID = entityNumber + 1;
+			}
 		}
 
 		// field of view
@@ -8697,7 +8715,7 @@ void idPlayer::ClientPredictionThink(void)
 		}
 	}
 
-	if (gameLocal.isMultiplayer || g_showPlayerShadow.GetBool()) {
+	if ( gameLocal.isMultiplayer || g_showPlayerShadow.GetBool() || pm_modelView.GetInteger() > 0 ) {
 		renderEntity.suppressShadowInViewID	= 0;
 
 		if (headRenderEnt) {
