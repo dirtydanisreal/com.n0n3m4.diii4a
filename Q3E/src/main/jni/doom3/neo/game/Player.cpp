@@ -7955,6 +7955,10 @@ void idPlayer::CalculateFirstPersonView(void)
 	ang.pitch = viewAngles.pitch;
 	*/
 
+		// Move the camera back a little bit further into the head...
+	idVec3 forward = viewAngles.ToForward();
+	origin -= forward * 4.0f;
+
 	firstPersonViewOrigin = origin;
 	firstPersonViewAxis = viewAngles.ToMat3();
 
@@ -8106,6 +8110,12 @@ void idPlayer::CalculateRenderView(void)
 				// set the viewID to the clientNum + 1, so we can suppress the right player bodies and
 				// allow the right player view weapons
 				renderView->viewID = entityNumber + 1;
+				/*
+				idAFAttachment *headAttch = head.GetEntity();
+				if( headAttch ) {
+					headAttch->Hide();
+				}
+				*/
 			}
 		} else if (pm_thirdPerson.GetBool()) {
 			OffsetThirdPersonView(pm_thirdPersonAngle.GetFloat(), pm_thirdPersonRange.GetFloat(), pm_thirdPersonHeight.GetFloat(), pm_thirdPersonClip.GetBool());
@@ -8615,11 +8625,7 @@ void idPlayer::ClientPredictionThink(void)
 
 	usercmd = gameLocal.usercmds[ entityNumber ];
 
-	if (entityNumber != gameLocal.localClientNum) {
-		// ignore attack button of other clients. that's no good for predictions
-		usercmd.buttons &= ~BUTTON_ATTACK;
-	}
-
+	
 	buttonMask &= usercmd.buttons;
 	usercmd.buttons &= ~buttonMask;
 
